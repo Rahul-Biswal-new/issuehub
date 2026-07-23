@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException, RequestValidationError
 
-from routers import auth
+from routers import auth, projects, issues, comments
 
 app = FastAPI(title="IssueHub API")
 
@@ -70,6 +70,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 # Register routers
 app.include_router(auth.router)
+app.include_router(projects.router)
+app.include_router(issues.router)
+app.include_router(comments.router)
 
 @app.get("/")
 def read_root():
