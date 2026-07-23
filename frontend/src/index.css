@@ -1,4 +1,4 @@
-﻿/* Google Font */
+/* Google Font */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* Tokens */
@@ -158,6 +158,17 @@ input, textarea, select, button { font-family: inherit; font-size: 0.95rem; }
 .modal-close:hover { color: var(--text); }
 .modal-body { padding: 20px 22px 22px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* Member management styles */
+.member-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; max-height: 200px; overflow-y: auto; }
+.member-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); }
+.member-info { display: flex; flex-direction: column; }
+.member-name { font-weight: 500; font-size: 0.9rem; }
+.member-email { font-size: 0.8rem; color: var(--text-muted); }
+.member-role { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: 12px; background: var(--surface); color: var(--accent); border: 1px solid var(--border); }
+.add-member-form { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 12px; }
+.project-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.btn-sm { padding: 4px 10px; font-size: 0.8rem; }
 
 /* Toast */
 .toast { position: fixed; top: 68px; right: 20px; z-index: 999; padding: 12px 18px; border-radius: var(--radius); font-size: 0.9rem; font-weight: 500; box-shadow: var(--shadow); animation: toast-in 0.2s ease; max-width: 360px; }
