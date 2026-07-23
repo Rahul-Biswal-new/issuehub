@@ -1,12 +1,16 @@
+import os
 from datetime import datetime, timedelta
 from typing import Optional
+from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+load_dotenv()
+
 # Security Configuration
-SECRET_KEY = "SUPER_SECRET_KEY_FOR_ISSUEHUB_LOCAL_DEV_JWT_SIGNING"
+SECRET_KEY = os.getenv("SECRET_KEY", "SUPER_SECRET_KEY_FOR_ISSUEHUB_LOCAL_DEV_JWT_SIGNING")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
