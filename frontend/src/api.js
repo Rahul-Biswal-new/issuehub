@@ -43,7 +43,9 @@ export const getMe   = ()  => request("GET",  "/api/me");
 // Projects
 export const listProjects  = ()      => request("GET",  "/api/projects");
 export const createProject = (d)     => request("POST", "/api/projects", d);
+export const getProject    = (id)    => request("GET",  `/api/projects/${id}`);
 export const addMember     = (id, d) => request("POST", `/api/projects/${id}/members`, d);
+export const listMembers   = (id)    => request("GET",  `/api/projects/${id}/members`);
 
 // Issues
 export const listIssues  = (pid, params) => {

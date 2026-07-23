@@ -76,3 +76,15 @@ def get_current_user(token: str = Depends(get_token), db: Session = Depends(get_
             }
         )
     return user
+
+
+def get_member(db: Session, project_id: int, user_id: int):
+    """Return the ProjectMember row or None. Shared by issues & comments routers."""
+    return (
+        db.query(models.ProjectMember)
+        .filter(
+            models.ProjectMember.project_id == project_id,
+            models.ProjectMember.user_id == user_id,
+        )
+        .first()
+    )

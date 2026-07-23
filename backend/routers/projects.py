@@ -62,6 +62,31 @@ def list_projects(
     )
     return projects
 
+
+@router.get("/{project_id}", response_model=schemas.ProjectOut)
+def get_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "PROJECT_NOT_FOUND", "message": "Project not found."}}
+        )
+    # Only members can fetch a project
+    membership = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == current_user.id
+    ).first()
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Not a member of this project."}}
+        )
+    return project
+
 @router.post("/{project_id}/members", response_model=schemas.ProjectMemberOut)
 def add_project_member(
     project_id: int,
@@ -140,3 +165,24 @@ def add_project_member(
     db.refresh(new_member)
     
     return new_member
+
+
+@router.get("/{project_id}/members", response_model=List[schemas.ProjectMemberOut])
+def list_project_members(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # Must be a member to view the member list
+    membership = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == current_user.id
+    ).first()
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Not a member of this project."}}
+        )
+    return db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id
+    ).all()

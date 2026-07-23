@@ -25,7 +25,6 @@ export default function IssueDetailPage({ user, onLogout }) {
   const [commentBody, setCommentBody] = useState("");
   const [posting, setPosting]   = useState(false);
   const [isMaintainer, setIsMaintainer] = useState(false);
-  const [members, setMembers]   = useState([]);
 
   useEffect(() => {
     async function load() {
@@ -33,15 +32,11 @@ export default function IssueDetailPage({ user, onLogout }) {
         const iss = await api.getIssue(issueId);
         setIssue(iss);
 
-        // Check if current user is maintainer
-        const projs = await api.listProjects();
-        const proj  = projs.find((p) => p.id === iss.project_id);
-        // We detect maintainer by trying to fetch — simpler: track in user context
-        // For now we load members from add-member endpoint not available for GET,
-        // so we attempt a PATCH and rely on the server to reject if not maintainer.
-        // Instead, store isMaintainer via a simple heuristic: reporter can be anyone.
-        // We'll just always show maintainer controls and let the server enforce.
-        setIsMaintainer(true); // server enforces permissions; UI shows controls for UX
+        // Determine if current user is a maintainer of this project
+        const members = await api.listMembers(iss.project_id);
+        const me = await api.getMe();
+        const myMembership = members.find((m) => m.user_id === me.id);
+        setIsMaintainer(myMembership?.role === "maintainer");
 
         const coms = await api.listComments(issueId);
         setComments(coms);

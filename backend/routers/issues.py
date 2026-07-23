@@ -5,20 +5,9 @@ import datetime
 from database import get_db
 import models
 import schemas
-from dependencies import get_current_user
+from dependencies import get_current_user, get_member
 
 router = APIRouter(tags=["issues"])
-
-
-def _get_member(db: Session, project_id: int, user_id: int):
-    return (
-        db.query(models.ProjectMember)
-        .filter(
-            models.ProjectMember.project_id == project_id,
-            models.ProjectMember.user_id == user_id,
-        )
-        .first()
-    )
 
 
 # ── List / Create issues ──────────────────────────────────────────────────────
@@ -34,7 +23,7 @@ def list_issues(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not _get_member(db, project_id, current_user.id):
+    if not get_member(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="Not a member of this project.")
 
     query = db.query(models.Issue).filter(models.Issue.project_id == project_id)
@@ -70,7 +59,7 @@ def create_issue(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if not _get_member(db, project_id, current_user.id):
+    if not get_member(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="Not a member of this project.")
 
     issue = models.Issue(
@@ -98,7 +87,7 @@ def get_issue(
     issue = db.query(models.Issue).filter(models.Issue.id == issue_id).first()
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found.")
-    if not _get_member(db, issue.project_id, current_user.id):
+    if not get_member(db, issue.project_id, current_user.id):
         raise HTTPException(status_code=403, detail="Not a member of this project.")
     return issue
 
@@ -114,7 +103,7 @@ def update_issue(
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found.")
 
-    membership = _get_member(db, issue.project_id, current_user.id)
+    membership = get_member(db, issue.project_id, current_user.id)
     if not membership:
         raise HTTPException(status_code=403, detail="Not a member of this project.")
 
@@ -146,7 +135,7 @@ def delete_issue(
     if not issue:
         raise HTTPException(status_code=404, detail="Issue not found.")
 
-    membership = _get_member(db, issue.project_id, current_user.id)
+    membership = get_member(db, issue.project_id, current_user.id)
     if not membership or (membership.role != "maintainer" and issue.reporter_id != current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to delete this issue.")
 
