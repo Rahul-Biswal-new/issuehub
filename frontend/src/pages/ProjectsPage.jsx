@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as api from "../api";
 import { showToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
+import { Navbar } from "../components/Navbar";
 
 export default function ProjectsPage({ user, onLogout }) {
   const [projects, setProjects] = useState([]);
@@ -80,25 +81,9 @@ export default function ProjectsPage({ user, onLogout }) {
     }
   }
 
-  function handleLogout() {
-    api.logout().catch(() => {});
-    localStorage.removeItem("token");
-    onLogout();
-    navigate("/");
-  }
-
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <span className="logo-icon">🐛</span>
-          <span className="brand-name">IssueHub</span>
-        </div>
-        <div className="topbar-right">
-          <span className="user-name">{user?.name}</span>
-          <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+      <Navbar user={user} onLogout={onLogout} />
 
       <main className="container">
         <div className="page-heading">
@@ -112,7 +97,9 @@ export default function ProjectsPage({ user, onLogout }) {
           <div className="spinner-wrap"><div className="spinner" /></div>
         ) : projects.length === 0 ? (
           <div className="empty-state">
-            <p>No projects yet. Create your first one!</p>
+            <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>📁</div>
+            <h2>No projects found</h2>
+            <p>Get started by creating your first project to track issues.</p>
           </div>
         ) : (
           <div className="project-grid">
@@ -129,7 +116,7 @@ export default function ProjectsPage({ user, onLogout }) {
                     onClick={(e) => openMembersModal(e, p)}
                     title="Manage project members"
                   >
-                    👥 Members
+                    👥 {p.members_count != null ? p.members_count : "Members"}
                   </span>
                 </div>
                 <div className="project-name">{p.name}</div>
@@ -144,6 +131,7 @@ export default function ProjectsPage({ user, onLogout }) {
           </div>
         )}
       </main>
+
 
       {showCreate && (
         <Modal title="New Project" onClose={() => setShowCreate(false)}>

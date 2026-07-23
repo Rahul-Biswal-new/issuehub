@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import * as api from "../api";
 import { showToast } from "../components/Toast";
+import { Navbar } from "../components/Navbar";
 
 const STATUS_LABELS = {
   open: "Open", in_progress: "In Progress", resolved: "Resolved", closed: "Closed",
@@ -25,6 +26,7 @@ export default function IssueDetailPage({ user, onLogout }) {
   const [commentBody, setCommentBody] = useState("");
   const [posting, setPosting]   = useState(false);
   const [isMaintainer, setIsMaintainer] = useState(false);
+  const [projectMembers, setProjectMembers] = useState([]);
 
   useEffect(() => {
     async function load() {
@@ -32,8 +34,9 @@ export default function IssueDetailPage({ user, onLogout }) {
         const iss = await api.getIssue(issueId);
         setIssue(iss);
 
-        // Determine if current user is a maintainer of this project
+        // Determine if current user is a maintainer & load project members
         const members = await api.listMembers(iss.project_id);
+        setProjectMembers(members);
         const me = await api.getMe();
         const myMembership = members.find((m) => m.user_id === me.id);
         setIsMaintainer(myMembership?.role === "maintainer");
@@ -85,13 +88,6 @@ export default function IssueDetailPage({ user, onLogout }) {
     }
   }
 
-  function handleLogout() {
-    api.logout().catch(() => {});
-    localStorage.removeItem("token");
-    onLogout();
-    navigate("/");
-  }
-
   if (loading) return (
     <div className="page">
       <div className="spinner-wrap" style={{ marginTop: "20vh" }}><div className="spinner" /></div>
@@ -102,27 +98,22 @@ export default function IssueDetailPage({ user, onLogout }) {
     <div className="page"><div className="container"><p>Issue not found.</p></div></div>
   );
 
+  const canDelete = isMaintainer || (user && issue.reporter_id === user.id);
+
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <span className="logo-icon">🐛</span>
-          <span className="brand-name">IssueHub</span>
-        </div>
-        <div className="topbar-right">
-          <Link to={`/projects/${issue.project_id}/issues`} className="btn btn-ghost">← Issues</Link>
-          <span className="user-name">{user?.name}</span>
-          <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+      <Navbar user={user} onLogout={onLogout} backLink={`/projects/${issue.project_id}/issues`} backText="← Issues" />
 
       <main className="container detail-layout">
         {/* Left: title + description + comments */}
         <div className="detail-main">
           <div className="detail-title-row">
-            <h1>{issue.title}</h1>
-            <button className="btn btn-danger-ghost" onClick={handleDelete}>Delete</button>
+            <h1>#{issue.id} — {issue.title}</h1>
+            {canDelete && (
+              <button className="btn btn-danger-ghost" onClick={handleDelete}>Delete</button>
+            )}
           </div>
+
 
           {issue.description && (
             <div className="detail-description">{issue.description}</div>
@@ -162,28 +153,40 @@ export default function IssueDetailPage({ user, onLogout }) {
         <aside className="detail-sidebar">
           <div className="sidebar-section">
             <h3>Status</h3>
-            <select
-              value={issue.status}
-              onChange={(e) => handlePatch({ status: e.target.value })}
-              className={`status-select status-${issue.status}`}
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-              ))}
-            </select>
+            {isMaintainer ? (
+              <select
+                value={issue.status}
+                onChange={(e) => handlePatch({ status: e.target.value })}
+                className={`status-select status-${issue.status}`}
+              >
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+            ) : (
+              <span className={`status-chip status-${issue.status}`}>
+                {STATUS_LABELS[issue.status]}
+              </span>
+            )}
           </div>
 
           <div className="sidebar-section">
             <h3>Priority</h3>
-            <select
-              value={issue.priority}
-              onChange={(e) => handlePatch({ priority: e.target.value })}
-              className={`priority-select ${PRIORITY_BADGE[issue.priority]}`}
-            >
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-              ))}
-            </select>
+            {isMaintainer ? (
+              <select
+                value={issue.priority}
+                onChange={(e) => handlePatch({ priority: e.target.value })}
+                className={`priority-select ${PRIORITY_BADGE[issue.priority]}`}
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                ))}
+              </select>
+            ) : (
+              <span className={`badge ${PRIORITY_BADGE[issue.priority]}`}>
+                {issue.priority}
+              </span>
+            )}
           </div>
 
           <div className="sidebar-section">
@@ -193,7 +196,22 @@ export default function IssueDetailPage({ user, onLogout }) {
 
           <div className="sidebar-section">
             <h3>Assignee</h3>
-            <span className="meta-value">{issue.assignee?.name || "Unassigned"}</span>
+            {isMaintainer ? (
+              <select
+                value={issue.assignee_id || ""}
+                onChange={(e) => handlePatch({ assignee_id: e.target.value ? Number(e.target.value) : null })}
+                className="status-select"
+              >
+                <option value="">Unassigned</option>
+                {projectMembers.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.user?.name || `User #${m.user_id}`}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="meta-value">{issue.assignee?.name || "Unassigned"}</span>
+            )}
           </div>
 
           <div className="sidebar-section">

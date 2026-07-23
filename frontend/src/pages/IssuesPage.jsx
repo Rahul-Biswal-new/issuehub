@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import * as api from "../api";
 import { showToast } from "../components/Toast";
 import { Modal } from "../components/Modal";
+import { Navbar } from "../components/Navbar";
 
 const STATUSES  = ["", "open", "in_progress", "resolved", "closed"];
 const PRIORITIES = ["", "critical", "high", "medium", "low"];
@@ -19,33 +20,44 @@ const PRIORITY_BADGE = {
   critical: "badge-critical", high: "badge-high", medium: "badge-medium", low: "badge-low",
 };
 
+const PAGE_SIZE = 20;
+
 export default function IssuesPage({ user, onLogout }) {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
   const [issues, setIssues]     = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [filters, setFilters]   = useState({ q: "", status: "", priority: "", sort: "created_at" });
+  const [filters, setFilters]   = useState({ q: "", status: "", priority: "", assignee: "", sort: "created_at" });
+  const [page, setPage]         = useState(1);
   const [showNew, setShowNew]   = useState(false);
   const [form, setForm]         = useState({ title: "", description: "", priority: "medium", assignee_id: "" });
   const [saving, setSaving]     = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [members, setMembers]   = useState([]);
 
   const loadIssues = useCallback(() => {
     setLoading(true);
-    api.listIssues(projectId, { q: filters.q, status: filters.status, priority: filters.priority, sort: filters.sort })
-      .then((data) => { setIssues(data); })
+    api.listIssues(projectId, {
+      q: filters.q,
+      status: filters.status,
+      priority: filters.priority,
+      assignee_id: filters.assignee,
+      sort: filters.sort,
+    })
+      .then((data) => { setIssues(data); setPage(1); })
       .catch((e) => showToast(e.message, "error"))
       .finally(() => setLoading(false));
   }, [projectId, filters]);
 
   useEffect(() => {
-    // Get project name from the issues list or projects list
-    api.listProjects()
-      .then((ps) => {
-        const p = ps.find((x) => String(x.id) === String(projectId));
-        if (p) setProjectName(p.name);
-      })
+    // Get project details and project members
+    api.getProject(projectId)
+      .then((p) => setProjectName(p.name))
+      .catch(() => {});
+
+    api.listMembers(projectId)
+      .then(setMembers)
       .catch(() => {});
   }, [projectId]);
 
@@ -75,26 +87,12 @@ export default function IssuesPage({ user, onLogout }) {
     }
   }
 
-  function handleLogout() {
-    api.logout().catch(() => {});
-    localStorage.removeItem("token");
-    onLogout();
-    navigate("/");
-  }
+  const totalPages = Math.ceil(issues.length / PAGE_SIZE) || 1;
+  const paginatedIssues = issues.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <span className="logo-icon">🐛</span>
-          <span className="brand-name">IssueHub</span>
-        </div>
-        <div className="topbar-right">
-          <Link to="/projects" className="btn btn-ghost">← Projects</Link>
-          <span className="user-name">{user?.name}</span>
-          <button className="btn btn-ghost" onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+      <Navbar user={user} onLogout={onLogout} backLink="/projects" backText="← Projects" />
 
       <main className="container">
         <div className="page-heading">
@@ -122,6 +120,14 @@ export default function IssuesPage({ user, onLogout }) {
             <option value="">All priorities</option>
             {PRIORITIES.slice(1).map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
+          <select value={filters.assignee} onChange={setFilter("assignee")}>
+            <option value="">All assignees</option>
+            {members.map((m) => (
+              <option key={m.user_id} value={m.user_id}>
+                {m.user?.name || `User #${m.user_id}`}
+              </option>
+            ))}
+          </select>
           <select value={filters.sort} onChange={setFilter("sort")}>
             {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
@@ -131,29 +137,50 @@ export default function IssuesPage({ user, onLogout }) {
         {loading ? (
           <div className="spinner-wrap"><div className="spinner" /></div>
         ) : issues.length === 0 ? (
-          <div className="empty-state">No issues match your filters.</div>
-        ) : (
-          <div className="issue-list">
-            {issues.map((issue) => (
-              <button
-                key={issue.id}
-                className="issue-row"
-                onClick={() => navigate(`/issues/${issue.id}`)}
-              >
-                <div className="issue-left">
-                  <span className={`badge ${PRIORITY_BADGE[issue.priority]}`}>{issue.priority}</span>
-                  <span className="issue-title">{issue.title}</span>
-                </div>
-                <div className="issue-right">
-                  <span className={`status-chip status-${issue.status}`}>{STATUS_LABELS[issue.status]}</span>
-                  {issue.assignee && <span className="assignee-chip">{issue.assignee.name}</span>}
-                  <span className="issue-date">{new Date(issue.created_at).toLocaleDateString()}</span>
-                </div>
-              </button>
-            ))}
+          <div className="empty-state">
+            <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>🔍</div>
+            <h2>No issues found</h2>
+            <p>No issues match your current filters or search terms.</p>
           </div>
+        ) : (
+          <>
+            <div className="issue-list">
+              {paginatedIssues.map((issue) => (
+                <button
+                  key={issue.id}
+                  className="issue-row"
+                  onClick={() => navigate(`/issues/${issue.id}`)}
+                >
+                  <div className="issue-left">
+                    <span className={`badge ${PRIORITY_BADGE[issue.priority]}`}>{issue.priority}</span>
+                    <span className="issue-title">#{issue.id} — {issue.title}</span>
+                  </div>
+                  <div className="issue-right">
+                    <span className={`status-chip status-${issue.status}`}>{STATUS_LABELS[issue.status]}</span>
+                    {issue.assignee && <span className="assignee-chip">{issue.assignee.name}</span>}
+                    <span className="issue-date">{new Date(issue.created_at).toLocaleDateString()}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", marginTop: "20px" }}>
+                <button className="btn btn-ghost btn-sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  Previous
+                </button>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  Page {page} of {totalPages}
+                </span>
+                <button className="btn btn-ghost btn-sm" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
+
 
       {showNew && (
         <Modal title="New Issue" onClose={() => setShowNew(false)}>
@@ -170,6 +197,17 @@ export default function IssuesPage({ user, onLogout }) {
               <label htmlFor="issue-priority">Priority</label>
               <select id="issue-priority" value={form.priority} onChange={setFormField("priority")}>
                 {PRIORITIES.slice(1).map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="issue-assignee">Assignee</label>
+              <select id="issue-assignee" value={form.assignee_id} onChange={setFormField("assignee_id")}>
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    {m.user?.name || `User #${m.user_id}`}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="modal-actions">

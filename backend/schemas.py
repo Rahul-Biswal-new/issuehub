@@ -45,6 +45,7 @@ class ProjectCreate(ProjectBase):
 class ProjectOut(ProjectBase):
     id: int
     created_at: datetime
+    members_count: Optional[int] = None
 
     class Config:
         from_attributes = True

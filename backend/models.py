@@ -31,6 +31,10 @@ class Project(Base):
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     issues = relationship("Issue", back_populates="project", cascade="all, delete-orphan")
 
+    @property
+    def members_count(self) -> int:
+        return len(self.members)
+
 class ProjectMember(Base):
     __tablename__ = "project_members"
 
